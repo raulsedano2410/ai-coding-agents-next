@@ -12,7 +12,7 @@ from pathlib import Path
 
 def load_classifier():
     from transformers import pipeline
-    token = os.environ.get('HF_TOKEN')
+    token = os.environ.get('HF_TOKEN') or None
     return pipeline(
         'text-classification',
         model='aquiro1994/naics-github-classifier',
