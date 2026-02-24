@@ -6,7 +6,7 @@ Reads from new fetch_daily/classify format and upserts monthly_stats.
 
 import os
 import json
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 from collections import defaultdict
 
@@ -23,8 +23,8 @@ def main():
 
     supabase = create_client(supabase_url, supabase_key)
 
-    today = datetime.utcnow().strftime('%Y-%m-%d')
-    current_month = datetime.utcnow().strftime('%Y-%m')
+    today = datetime.now(UTC).strftime('%Y-%m-%d')
+    current_month = datetime.now(UTC).strftime('%Y-%m')
 
     input_file = Path('data/daily') / f'{today}.json'
     classified_file = Path('data/daily') / f'{today}_classified.json'
@@ -103,8 +103,8 @@ def main():
     # Update metadata
     supabase.table('metadata').upsert({
         'key': 'last_updated',
-        'value': datetime.utcnow().isoformat(),
-        'updated_at': datetime.utcnow().isoformat()
+        'value': datetime.now(UTC).isoformat(),
+        'updated_at': datetime.now(UTC).isoformat()
     }).execute()
 
     print(f'\nDone! {updates} updates for {current_month}')
