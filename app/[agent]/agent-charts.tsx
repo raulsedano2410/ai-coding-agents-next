@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CumulativeChart } from '@/components/charts/cumulative-chart'
 import { MonthlyChart } from '@/components/charts/monthly-chart'
-import { IndustryBarRace, IndustryLegend } from '@/components/charts/industry-bar-race'
+import { IndustryBarRace } from '@/components/charts/industry-bar-race'
 import { Industry } from '@/lib/types'
 
 interface IndustryTotal {
@@ -15,12 +15,21 @@ interface IndustryTotal {
   color: string
 }
 
+interface TimeDataItem {
+  code: string
+  name: string
+  color: string
+  values: number[]
+}
+
 interface AgentChartsProps {
   agentColor: string
   cumulativeData: Record<string, string | number>[]
   monthlyData: Record<string, string | number>[]
   industryTotals: IndustryTotal[]
   industries: Industry[]
+  timeData?: TimeDataItem[]
+  months?: string[]
 }
 
 export function AgentCharts({
@@ -28,18 +37,25 @@ export function AgentCharts({
   monthlyData,
   industryTotals,
   industries,
+  timeData,
+  months,
 }: AgentChartsProps) {
   const [activeTab, setActiveTab] = useState('cumulative')
 
   return (
     <div className="space-y-8">
-      {/* Industry Distribution */}
+      {/* Industry Distribution - Animated Bar Race */}
       <Card>
         <CardHeader>
           <CardTitle>Industry Distribution</CardTitle>
         </CardHeader>
         <CardContent>
-          <IndustryBarRace data={industryTotals} maxItems={10} />
+          <IndustryBarRace
+            data={industryTotals}
+            maxItems={10}
+            timeData={timeData}
+            months={months}
+          />
         </CardContent>
       </Card>
 
@@ -57,12 +73,10 @@ export function AgentCharts({
 
             <TabsContent value="cumulative">
               <CumulativeChart data={cumulativeData} industries={industries} />
-              <IndustryLegend industries={industries} />
             </TabsContent>
 
             <TabsContent value="monthly">
               <MonthlyChart data={monthlyData} industries={industries} />
-              <IndustryLegend industries={industries} />
             </TabsContent>
           </Tabs>
         </CardContent>

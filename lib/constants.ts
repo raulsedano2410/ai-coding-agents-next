@@ -57,3 +57,62 @@ export const NAICS_DESCRIPTIONS: Record<string, string> = {
   '42': 'Wholesale Trade - Selling goods to retailers or businesses.',
   '21': 'Mining, Quarrying, and Oil and Gas Extraction - Resource extraction industries.',
 }
+
+export const AGENT_COMPANIES: Record<string, string> = {
+  claude: 'Anthropic',
+  copilot: 'GitHub / Microsoft',
+  codex: 'OpenAI',
+  cursor: 'Anysphere',
+}
+
+export const AGENT_STATS: Record<string, { repos: string; profServices: string; months: number; growthRank: string }> = {
+  claude: { repos: '391K', profServices: '28%', months: 13, growthRank: '#1' },
+  copilot: { repos: '247K', profServices: '25%', months: 14, growthRank: '#2' },
+  codex: { repos: '249K', profServices: '22%', months: 14, growthRank: '#3' },
+  cursor: { repos: '129K', profServices: '24%', months: 14, growthRank: '#4' },
+}
+
+export const KEY_FINDINGS = [
+  {
+    number: '01',
+    title: 'Professional Services Dominates',
+    description: 'NAICS sector 54 (Professional, Scientific, and Technical Services) leads adoption across all agents, representing 22-28% of repositories. This is expected as software development is a core activity in this sector.',
+  },
+  {
+    number: '02',
+    title: 'Information Sector Strong Second',
+    description: 'NAICS sector 51 (Information) consistently ranks second across all agents, representing tech companies, publishers, and data processing organizations heavily invested in software development.',
+  },
+  {
+    number: '03',
+    title: 'Claude Code Shows Fastest Growth',
+    description: 'Claude Code demonstrates the steepest adoption curve, particularly in late 2025, with January 2026 alone seeing 111,000+ new repositories — more than double Copilot\'s and Codex\'s monthly growth.',
+  },
+  {
+    number: '04',
+    title: 'Finance and Healthcare Accelerating',
+    description: 'Sectors 52 (Finance) and 62 (Healthcare) show accelerating adoption rates, suggesting growing trust in AI coding tools for regulated industries.',
+  },
+]
+
+export const INDUSTRY_EXAMPLES: Record<string, string[]> = {
+  '54': ['Software consulting', 'Legal tech', 'Accounting tools', 'Engineering firms'],
+  '51': ['SaaS platforms', 'Media companies', 'Data analytics', 'Telecom'],
+  '52': ['Fintech', 'Banking apps', 'Insurance platforms', 'Trading tools'],
+  '61': ['EdTech', 'LMS platforms', 'Online courses', 'University projects'],
+  '71': ['Gaming', 'Streaming', 'Sports analytics', 'VR/AR'],
+  '56': ['HR tech', 'Staffing platforms', 'Security services', 'Facility management'],
+  '81': ['Repair services', 'Personal care apps', 'Civic organizations', 'Religious orgs'],
+  '48-49': ['Logistics', 'Fleet management', 'Delivery apps', 'Supply chain'],
+  '44-45': ['E-commerce', 'POS systems', 'Inventory management', 'Online marketplaces'],
+  '62': ['Health records', 'Telemedicine', 'Clinical tools', 'Social services'],
+  '31-33': ['IoT manufacturing', 'Quality control', 'Supply chain', 'Automation'],
+  '92': ['Gov tech', 'Public records', 'Civic apps', 'Defense tools'],
+  '11': ['AgriTech', 'Precision farming', 'Forestry management', 'Fisheries'],
+  '72': ['Hotel booking', 'Restaurant POS', 'Food delivery', 'Travel tech'],
+  '53': ['PropTech', 'Rental platforms', 'Real estate CRM', 'Property management'],
+  '22': ['Smart grid', 'Energy management', 'Water systems', 'Power distribution'],
+  '23': ['Project management', 'BIM tools', 'Contractor apps', 'Safety tracking'],
+  '42': ['B2B marketplaces', 'Distribution tools', 'Wholesale platforms', 'Trade logistics'],
+  '21': ['Mining tech', 'Oil & gas analytics', 'Resource mapping', 'Extraction tools'],
+}

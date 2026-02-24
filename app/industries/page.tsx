@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { INDUSTRIES, NAICS_DESCRIPTIONS } from '@/lib/constants'
+import { INDUSTRIES, NAICS_DESCRIPTIONS, INDUSTRY_EXAMPLES } from '@/lib/constants'
+import { ExternalLink } from 'lucide-react'
 
 export const metadata = {
   title: 'Industry Classification | AI Coding Agents',
@@ -10,97 +11,131 @@ export default function IndustriesPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-zinc-100 mb-4">
-          Industry Classification
+      <div className="text-center mb-10">
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-zinc-100 mb-4">
+          NAICS Industry Codes
         </h1>
-        <p className="text-zinc-400 max-w-3xl">
-          We use the North American Industry Classification System (NAICS) to
-          categorize GitHub repositories by industry sector. Our AI classifier
-          analyzes repository descriptions, README files, and topics to assign
-          the most relevant industry code.
+        <p className="text-zinc-400 max-w-3xl mx-auto">
+          Reference guide to the 19 industry sectors used in our analysis, based on
+          the North American Industry Classification System
         </p>
       </div>
 
-      {/* NAICS Info Card */}
-      <Card className="mb-8">
+      {/* About NAICS */}
+      <Card className="mb-10">
         <CardHeader>
           <CardTitle>About NAICS</CardTitle>
         </CardHeader>
         <CardContent className="text-zinc-300 space-y-4">
           <p>
-            The North American Industry Classification System (NAICS) is the
-            standard used by Federal statistical agencies in classifying
-            business establishments. It was developed by the U.S. Economic
-            Classification Policy Committee, Statistics Canada, and Mexico's
-            INEGI.
+            The <strong className="text-zinc-100">North American Industry Classification System (NAICS)</strong> is
+            the standard used by Federal statistical agencies in classifying business
+            establishments. It provides a consistent framework for collecting, analyzing,
+            and publishing statistical data related to the U.S. business economy.
           </p>
           <p>
-            NAICS uses a 6-digit hierarchical coding system to classify all
-            economic activity into 20 industry sectors. For our analysis, we use
-            the 2-digit sector codes to provide a high-level view of which
-            industries are adopting AI coding tools.
+            In our analysis, we use the <strong className="text-zinc-100">2-digit NAICS sector codes</strong> to
+            classify GitHub repositories by the industry of their owners or primary use
+            case. This classification is performed by a machine learning model trained
+            on manually labeled repository-industry pairs.
+          </p>
+          <p>
+            Learn more at{' '}
+            <a
+              href="https://www.census.gov/naics/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:text-blue-300 inline-flex items-center gap-1"
+            >
+              census.gov/naics <ExternalLink className="h-3 w-3" />
+            </a>
           </p>
         </CardContent>
       </Card>
 
-      {/* Industries Table */}
-      <Card>
+      {/* Industry Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
+        {INDUSTRIES.map((industry) => {
+          const description = NAICS_DESCRIPTIONS[industry.code]
+          const fullDesc = description?.split(' - ')[1] || description || ''
+          const examples = INDUSTRY_EXAMPLES[industry.code] || []
+
+          return (
+            <div
+              key={industry.code}
+              className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 hover:border-zinc-600 transition-all hover:-translate-y-0.5"
+            >
+              {/* Header */}
+              <div className="flex items-center gap-3 mb-4">
+                <span
+                  className="px-3 py-1 rounded-md text-xs font-bold font-mono"
+                  style={{ backgroundColor: `${industry.color}20`, color: industry.color }}
+                >
+                  {industry.code}
+                </span>
+                <span className="text-lg font-bold text-zinc-100">
+                  {industry.name}
+                </span>
+              </div>
+
+              {/* Description */}
+              <p className="text-sm text-zinc-400 leading-relaxed mb-4">
+                {fullDesc}
+              </p>
+
+              {/* Example Tags */}
+              {examples.length > 0 && (
+                <div className="rounded-lg bg-zinc-800/50 p-3">
+                  <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                    Example repositories
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {examples.map((example) => (
+                      <span
+                        key={example}
+                        className="px-2 py-1 rounded text-xs bg-zinc-800 text-zinc-400"
+                      >
+                        {example}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Excluded Sectors */}
+      <Card className="mb-10">
         <CardHeader>
-          <CardTitle>Industry Sectors</CardTitle>
-          <CardDescription>
-            2-digit NAICS codes used in our classification
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-zinc-800">
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">
-                    Code
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400">
-                    Industry
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-zinc-400 hidden md:table-cell">
-                    Description
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {INDUSTRIES.map((industry) => (
-                  <tr
-                    key={industry.code}
-                    className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors"
-                  >
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-sm"
-                          style={{ backgroundColor: industry.color }}
-                        />
-                        <span className="font-mono text-sm text-zinc-300">
-                          {industry.code}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-zinc-100 font-medium">
-                      {industry.name}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-zinc-400 hidden md:table-cell">
-                      {NAICS_DESCRIPTIONS[industry.code]?.split(' - ')[1] || ''}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex items-center gap-3">
+            <div className="w-1 h-6 rounded bg-amber-500" />
+            <CardTitle>Excluded Sectors</CardTitle>
           </div>
+        </CardHeader>
+        <CardContent className="text-zinc-300 space-y-4">
+          <p>
+            The following NAICS sector is excluded from our analysis due to limited
+            representation in public GitHub repositories:
+          </p>
+          <div className="rounded-lg bg-zinc-800/50 p-4 flex items-center gap-4">
+            <span className="text-amber-400 font-bold font-mono text-sm">55</span>
+            <span className="text-zinc-400 text-sm">
+              Management of Companies and Enterprises
+            </span>
+          </div>
+          <p className="text-sm text-zinc-400">
+            Sector 55 primarily consists of holding companies and corporate headquarters.
+            These organizations rarely maintain public repositories on GitHub, as their
+            software development activities typically occur within subsidiary companies
+            classified under other sectors.
+          </p>
         </CardContent>
       </Card>
 
       {/* Classification Process */}
-      <Card className="mt-8">
+      <Card>
         <CardHeader>
           <CardTitle>Classification Process</CardTitle>
         </CardHeader>
@@ -113,7 +148,7 @@ export default function IndustriesPage() {
               <h3 className="font-semibold text-zinc-100">Data Collection</h3>
               <p className="text-sm text-zinc-400">
                 We collect repository metadata including name, description,
-                README content, and topics from GitHub's public API.
+                README content, and topics from GitHub&apos;s public API.
               </p>
             </div>
 

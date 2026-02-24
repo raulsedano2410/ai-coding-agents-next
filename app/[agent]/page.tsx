@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { AGENTS, INDUSTRIES, AGENT_DESCRIPTIONS } from '@/lib/constants'
+import { Card, CardContent } from '@/components/ui/card'
+import { AGENTS, INDUSTRIES, AGENT_DESCRIPTIONS, AGENT_COMPANIES } from '@/lib/constants'
 import { getAgent, getAgentStats, getIndustries } from '@/lib/queries'
 import { formatNumber } from '@/lib/utils'
 import { AgentCharts } from './agent-charts'
@@ -19,7 +19,6 @@ interface PageProps {
 }
 
 function processStats(stats: MonthlyStat[], industries: Industry[]) {
-  // Get unique months
   const months = [...new Set(stats.map((s) => s.month))].sort()
 
   // Build cumulative data (stacked area chart)
@@ -46,7 +45,7 @@ function processStats(stats: MonthlyStat[], industries: Industry[]) {
     return point
   })
 
-  // Build industry totals for bar race
+  // Build industry totals for bar race (latest month)
   const industryTotals = industries.map((ind) => {
     const latestMonth = months[months.length - 1]
     const stat = stats.find(
@@ -60,7 +59,20 @@ function processStats(stats: MonthlyStat[], industries: Industry[]) {
     }
   })
 
-  return { months, cumulativeData, monthlyData, industryTotals }
+  // Build time series data for bar race animation (values per month per industry)
+  const timeData = industries.map((ind) => ({
+    code: ind.code,
+    name: ind.name,
+    color: ind.color,
+    values: months.map((month) => {
+      const stat = stats.find(
+        (s) => s.month === month && s.industry_code === ind.code
+      )
+      return stat?.cumulative || 0
+    }),
+  }))
+
+  return { months, cumulativeData, monthlyData, industryTotals, timeData }
 }
 
 export default async function AgentPage({ params }: PageProps) {
@@ -76,32 +88,44 @@ export default async function AgentPage({ params }: PageProps) {
     getIndustries(),
   ])
 
-  const { months, cumulativeData, monthlyData, industryTotals } = processStats(
+  const { months, cumulativeData, monthlyData, industryTotals, timeData } = processStats(
     stats,
     industries
   )
 
   const totalRepos = industryTotals.reduce((sum, i) => sum + i.value, 0)
-  const topIndustry = industryTotals.sort((a, b) => b.value - a.value)[0]
+  const sortedIndustries = [...industryTotals].sort((a, b) => b.value - a.value)
+  const topIndustry = sortedIndustries[0]
+  const company = AGENT_COMPANIES[agentId]
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex items-center gap-3 mb-4">
+        {/* Badge */}
+        <div className="inline-flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-800/50 px-4 py-1.5 text-xs text-zinc-400 mb-4">
+          <span className="h-2 w-2 rounded-full bg-green-500" />
+          Live Data Visualization
+        </div>
+
+        <div className="flex items-center gap-3 mb-2">
           <div
             className="w-4 h-4 rounded-full"
             style={{ backgroundColor: agent.color }}
           />
-          <h1 className="text-3xl font-bold text-zinc-100">{agent.name}</h1>
+          <h1 className="text-3xl font-bold text-zinc-100">
+            <span style={{ color: agent.color }}>{agent.name}</span> Industry Adoption
+          </h1>
         </div>
         <p className="text-zinc-400 max-w-2xl">
-          {AGENT_DESCRIPTIONS[agentId] || 'AI coding assistant analysis.'}
+          Tracking how different industries adopt AI coding assistants across{' '}
+          {formatNumber(totalRepos)}+ repositories on GitHub
+          {company && <span className="text-zinc-500"> &mdash; by {company}</span>}
         </p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      {/* Stats - 4 cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-zinc-400">Total Repositories</p>
@@ -113,10 +137,19 @@ export default async function AgentPage({ params }: PageProps) {
 
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-zinc-400">Data Range</p>
-            <p className="text-xl font-semibold text-zinc-100">
+            <p className="text-sm text-zinc-400">Industries Tracked</p>
+            <p className="text-3xl font-bold text-pink-400">
+              {industries.length}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-sm text-zinc-400">Current Period</p>
+            <p className="text-xl font-semibold text-blue-400">
               {months.length > 0
-                ? `${months[0]} to ${months[months.length - 1]}`
+                ? formatMonthShort(months[months.length - 1])
                 : 'No data'}
             </p>
           </CardContent>
@@ -124,11 +157,11 @@ export default async function AgentPage({ params }: PageProps) {
 
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-zinc-400">Top Industry</p>
-            <p className="text-xl font-semibold text-zinc-100">
+            <p className="text-sm text-zinc-400">Leading Industry</p>
+            <p className="text-xl font-semibold text-green-400">
               {topIndustry?.name || 'N/A'}
             </p>
-            <p className="text-sm" style={{ color: topIndustry?.color }}>
+            <p className="text-xs" style={{ color: topIndustry?.color }}>
               {formatNumber(topIndustry?.value || 0)} repos
             </p>
           </CardContent>
@@ -142,7 +175,15 @@ export default async function AgentPage({ params }: PageProps) {
         monthlyData={monthlyData}
         industryTotals={industryTotals}
         industries={industries}
+        timeData={timeData}
+        months={months}
       />
     </div>
   )
+}
+
+function formatMonthShort(month: string): string {
+  const [year, m] = month.split('-')
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return `${months[parseInt(m) - 1]} ${year}`
 }

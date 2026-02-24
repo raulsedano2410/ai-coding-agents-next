@@ -19,11 +19,12 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install requests pandas pyarrow supabase transformers torch --quiet
+          pip install requests supabase transformers --quiet
+          pip install torch --index-url https://download.pytorch.org/whl/cpu --quiet
 
       - name: Fetch new data from GitHub
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: python scripts/fetch_daily.py
 
       - name: Classify new repos (CPU)
@@ -32,5 +33,5 @@ jobs:
       - name: Aggregate and upload to Supabase
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: python scripts/upload_to_supabase.py

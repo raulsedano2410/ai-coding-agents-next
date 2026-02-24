@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
 Upload classified data to Supabase.
-
-This aggregates daily data and upserts to the monthly_stats table.
+Reads from new fetch_daily/classify format and upserts monthly_stats.
 """
 
 import os
@@ -16,10 +15,10 @@ from supabase import create_client
 
 def main():
     supabase_url = os.environ.get('SUPABASE_URL')
-    supabase_key = os.environ.get('SUPABASE_KEY')
+    supabase_key = os.environ.get('SUPABASE_SERVICE_KEY') or os.environ.get('SUPABASE_KEY')
 
     if not supabase_url or not supabase_key:
-        print('Missing SUPABASE_URL or SUPABASE_KEY')
+        print('Missing SUPABASE_URL or SUPABASE_SERVICE_KEY')
         return
 
     supabase = create_client(supabase_url, supabase_key)
@@ -34,34 +33,33 @@ def main():
         print(f'No input file: {input_file}')
         return
 
-    with open(input_file) as f:
-        daily_data = json.load(f)
+    # Load classifications (new format includes agents list)
+    if not classified_file.exists():
+        print(f'No classified file: {classified_file}')
+        return
 
-    # Load classifications
-    classifications = {}
-    if classified_file.exists():
-        with open(classified_file) as f:
-            for item in json.load(f):
-                classifications[item['repo_id']] = item['naics_code']
+    with open(classified_file) as f:
+        classified_items = json.load(f)
+
+    if not classified_items:
+        print('No classified items to upload')
+        return
 
     # Aggregate by agent and industry
     agent_industry_counts = defaultdict(lambda: defaultdict(int))
 
-    for agent, agent_data in daily_data.items():
-        for item in agent_data.get('items', []):
-            repo = item.get('repository') or {}
-            repo_id = repo.get('id')
-
-            if repo_id and repo_id in classifications:
-                naics_code = classifications[repo_id]
-                agent_industry_counts[agent][naics_code] += 1
+    for item in classified_items:
+        naics_code = item['naics_code']
+        for agent_id in item.get('agents', []):
+            agent_industry_counts[agent_id][naics_code] += 1
 
     # Upsert to Supabase
-    for agent, industry_counts in agent_industry_counts.items():
+    updates = 0
+    for agent_id, industry_counts in agent_industry_counts.items():
         for industry_code, count in industry_counts.items():
-            # Get current value
+            # Check if row exists for this month
             result = supabase.table('monthly_stats').select('*').eq(
-                'agent_id', agent
+                'agent_id', agent_id
             ).eq(
                 'industry_code', industry_code
             ).eq(
@@ -71,10 +69,8 @@ def main():
             current_data = result.data[0] if result.data else None
 
             if current_data:
-                # Update existing
                 new_cumulative = current_data['cumulative'] + count
                 new_repos = current_data['new_repos'] + count
-
                 supabase.table('monthly_stats').update({
                     'cumulative': new_cumulative,
                     'new_repos': new_repos
@@ -84,7 +80,7 @@ def main():
                 prev_result = supabase.table('monthly_stats').select(
                     'cumulative'
                 ).eq(
-                    'agent_id', agent
+                    'agent_id', agent_id
                 ).eq(
                     'industry_code', industry_code
                 ).order(
@@ -93,16 +89,16 @@ def main():
 
                 prev_cumulative = prev_result.data[0]['cumulative'] if prev_result.data else 0
 
-                # Insert new row
                 supabase.table('monthly_stats').insert({
-                    'agent_id': agent,
+                    'agent_id': agent_id,
                     'industry_code': industry_code,
                     'month': current_month,
                     'cumulative': prev_cumulative + count,
                     'new_repos': count
                 }).execute()
 
-            print(f'{agent}/{industry_code}: +{count}')
+            updates += 1
+            print(f'  {agent_id}/{industry_code}: +{count}')
 
     # Update metadata
     supabase.table('metadata').upsert({
@@ -111,7 +107,7 @@ def main():
         'updated_at': datetime.utcnow().isoformat()
     }).execute()
 
-    print(f'\nDone! Updated for {current_month}')
+    print(f'\nDone! {updates} updates for {current_month}')
 
 
 if __name__ == '__main__':

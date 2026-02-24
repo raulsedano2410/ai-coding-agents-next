@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 """
 Classify new repositories using the NAICS classifier.
-
-This runs on CPU in GitHub Actions.
+Reads repos from the new fetch_daily.py format.
 """
 
-import os
 import json
 from datetime import datetime
 from pathlib import Path
 
-# Only import heavy libraries if we have data to process
+
 def load_classifier():
     from transformers import pipeline
     return pipeline(
@@ -20,43 +18,16 @@ def load_classifier():
     )
 
 
-def get_repo_text(repo_data: dict) -> str:
+def get_repo_text(repo: dict) -> str:
     """Combine repo fields into classification text."""
     parts = []
-
-    if repo_data.get('name'):
-        parts.append(repo_data['name'])
-
-    if repo_data.get('description'):
-        parts.append(repo_data['description'])
-
-    if repo_data.get('topics'):
-        parts.append(' '.join(repo_data['topics']))
-
-    return ' '.join(parts)[:512]  # Truncate to 512 chars
-
-
-def classify_repos(repos: list, classifier) -> list:
-    """Classify a list of repositories."""
-    results = []
-
-    for repo in repos:
-        text = get_repo_text(repo)
-        if not text.strip():
-            continue
-
-        try:
-            prediction = classifier(text)[0]
-            results.append({
-                'repo_id': repo.get('id'),
-                'full_name': repo.get('full_name'),
-                'naics_code': prediction['label'],
-                'confidence': prediction['score']
-            })
-        except Exception as e:
-            print(f"Error classifying {repo.get('full_name')}: {e}")
-
-    return results
+    if repo.get('name'):
+        parts.append(repo['name'])
+    if repo.get('description'):
+        parts.append(repo['description'])
+    if repo.get('topics'):
+        parts.append(' '.join(repo['topics']))
+    return ' '.join(parts)[:512]
 
 
 def main():
@@ -71,32 +42,48 @@ def main():
     with open(input_file) as f:
         data = json.load(f)
 
-    # Extract unique repos from all agents
-    repos = {}
-    for agent, agent_data in data.items():
-        for item in agent_data.get('items', []):
-            # Extract repo info from PR or commit
-            repo = item.get('repository') or {}
-            if repo.get('id'):
-                repos[repo['id']] = {
-                    'id': repo['id'],
-                    'full_name': repo.get('full_name'),
-                    'name': repo.get('name'),
-                    'description': repo.get('description'),
-                    'topics': repo.get('topics', [])
-                }
+    # Extract unique repos from all agents (new structure: agent.repos[])
+    unique_repos = {}
+    agent_repo_map = {}  # repo_id -> set of agent_ids
 
-    if not repos:
+    for agent_id, agent_data in data.items():
+        for repo in agent_data.get('repos', []):
+            repo_id = repo.get('id')
+            if repo_id:
+                unique_repos[repo_id] = repo
+                if repo_id not in agent_repo_map:
+                    agent_repo_map[repo_id] = set()
+                agent_repo_map[repo_id].add(agent_id)
+
+    if not unique_repos:
         print('No new repos to classify')
+        # Save empty result
+        with open(output_file, 'w') as f:
+            json.dump([], f)
         return
 
-    print(f'Classifying {len(repos)} repositories...')
+    print(f'Classifying {len(unique_repos)} unique repositories...')
 
-    # Load classifier and process
     classifier = load_classifier()
-    classified = classify_repos(list(repos.values()), classifier)
+    classified = []
 
-    # Save results
+    for repo in unique_repos.values():
+        text = get_repo_text(repo)
+        if not text.strip():
+            continue
+
+        try:
+            prediction = classifier(text)[0]
+            classified.append({
+                'repo_id': repo['id'],
+                'full_name': repo.get('full_name', ''),
+                'naics_code': prediction['label'],
+                'confidence': round(prediction['score'], 4),
+                'agents': sorted(agent_repo_map.get(repo['id'], []))
+            })
+        except Exception as e:
+            print(f"  Error classifying {repo.get('full_name')}: {e}")
+
     with open(output_file, 'w') as f:
         json.dump(classified, f, indent=2)
 
