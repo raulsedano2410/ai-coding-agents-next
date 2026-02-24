@@ -2,6 +2,8 @@
 """
 Upload classified data to Supabase.
 Reads from new fetch_daily/classify format and upserts monthly_stats.
+Ensures ALL 19 industries have a row for every agent each month
+(carrying forward cumulative from previous month when new_repos=0).
 """
 
 import os
@@ -11,6 +13,12 @@ from pathlib import Path
 from collections import defaultdict
 
 from supabase import create_client
+
+ALL_AGENTS = ['claude', 'copilot', 'codex', 'cursor']
+ALL_INDUSTRIES = [
+    '11', '21', '22', '23', '31-33', '42', '44-45', '48-49',
+    '51', '52', '53', '54', '56', '61', '62', '71', '72', '81', '92'
+]
 
 
 def main():
@@ -26,38 +34,38 @@ def main():
     today = datetime.now(UTC).strftime('%Y-%m-%d')
     current_month = datetime.now(UTC).strftime('%Y-%m')
 
-    input_file = Path('data/daily') / f'{today}.json'
     classified_file = Path('data/daily') / f'{today}_classified.json'
 
-    if not input_file.exists():
-        print(f'No input file: {input_file}')
-        return
-
-    # Load classifications (new format includes agents list)
-    if not classified_file.exists():
-        print(f'No classified file: {classified_file}')
-        return
-
-    with open(classified_file) as f:
-        classified_items = json.load(f)
-
-    if not classified_items:
-        print('No classified items to upload')
-        return
+    # Load classifications
+    classified_items = []
+    if classified_file.exists():
+        with open(classified_file) as f:
+            classified_items = json.load(f)
 
     # Aggregate by agent and industry
     agent_industry_counts = defaultdict(lambda: defaultdict(int))
-
     for item in classified_items:
         naics_code = item['naics_code']
         for agent_id in item.get('agents', []):
             agent_industry_counts[agent_id][naics_code] += 1
 
-    # Upsert to Supabase
+    # Determine which agents had activity today
+    active_agents = set(agent_industry_counts.keys())
+    if not active_agents:
+        print('No classified items to upload')
+        return
+
+    print(f'Active agents today: {sorted(active_agents)}')
+
+    # For each active agent, ensure ALL 19 industries have a row for this month
     updates = 0
-    for agent_id, industry_counts in agent_industry_counts.items():
-        for industry_code, count in industry_counts.items():
-            # Check if row exists for this month
+    for agent_id in sorted(active_agents):
+        new_counts = agent_industry_counts[agent_id]
+
+        for industry_code in ALL_INDUSTRIES:
+            count = new_counts.get(industry_code, 0)
+
+            # Check if row already exists for this month
             result = supabase.table('monthly_stats').select('*').eq(
                 'agent_id', agent_id
             ).eq(
@@ -69,14 +77,16 @@ def main():
             current_data = result.data[0] if result.data else None
 
             if current_data:
-                new_cumulative = current_data['cumulative'] + count
-                new_repos = current_data['new_repos'] + count
-                supabase.table('monthly_stats').update({
-                    'cumulative': new_cumulative,
-                    'new_repos': new_repos
-                }).eq('id', current_data['id']).execute()
+                # Row exists: add new repos
+                if count > 0:
+                    supabase.table('monthly_stats').update({
+                        'cumulative': current_data['cumulative'] + count,
+                        'new_repos': current_data['new_repos'] + count
+                    }).eq('id', current_data['id']).execute()
+                    print(f'  {agent_id}/{industry_code}: +{count} (updated)')
+                    updates += 1
             else:
-                # Get previous month's cumulative
+                # No row yet: get previous month's cumulative and carry forward
                 prev_result = supabase.table('monthly_stats').select(
                     'cumulative'
                 ).eq(
@@ -97,8 +107,11 @@ def main():
                     'new_repos': count
                 }).execute()
 
-            updates += 1
-            print(f'  {agent_id}/{industry_code}: +{count}')
+                if count > 0:
+                    print(f'  {agent_id}/{industry_code}: +{count} (new row)')
+                else:
+                    print(f'  {agent_id}/{industry_code}: carried forward ({prev_cumulative})')
+                updates += 1
 
     # Update metadata
     supabase.table('metadata').upsert({
@@ -107,7 +120,7 @@ def main():
         'updated_at': datetime.now(UTC).isoformat()
     }).execute()
 
-    print(f'\nDone! {updates} updates for {current_month}')
+    print(f'\nDone! {updates} rows processed for {current_month}')
 
 
 if __name__ == '__main__':
