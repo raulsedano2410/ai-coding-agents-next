@@ -5,16 +5,19 @@ Reads repos from the new fetch_daily.py format.
 """
 
 import json
-from datetime import datetime
+import os
+from datetime import datetime, UTC
 from pathlib import Path
 
 
 def load_classifier():
     from transformers import pipeline
+    token = os.environ.get('HF_TOKEN')
     return pipeline(
         'text-classification',
-        model='alexanderquispe/naics-github-classifier',
-        device=-1  # CPU
+        model='aquiro1994/naics-github-classifier',
+        device=-1,  # CPU
+        token=token,
     )
 
 
@@ -31,7 +34,7 @@ def get_repo_text(repo: dict) -> str:
 
 
 def main():
-    today = datetime.utcnow().strftime('%Y-%m-%d')
+    today = datetime.now(UTC).strftime('%Y-%m-%d')
     input_file = Path('data/daily') / f'{today}.json'
     output_file = Path('data/daily') / f'{today}_classified.json'
 
