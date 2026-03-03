@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
 Classify new repositories using the NAICS classifier.
-Reads repos from the new fetch_daily.py format.
+Reads repos from fetch_daily.py output, classifies with RoBERTa on CPU.
 """
 
 import json
 import os
-from datetime import datetime, UTC
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
@@ -18,11 +18,12 @@ def load_classifier():
         model='aquiro1994/naics-github-classifier',
         device=-1,  # CPU
         token=token,
+        truncation=True,
+        max_length=512,
     )
 
 
 def get_repo_text(repo: dict) -> str:
-    """Combine repo fields into classification text."""
     parts = []
     if repo.get('name'):
         parts.append(repo['name'])
@@ -30,13 +31,13 @@ def get_repo_text(repo: dict) -> str:
         parts.append(repo['description'])
     if repo.get('topics'):
         parts.append(' '.join(repo['topics']))
-    return ' '.join(parts)[:512]
+    return ' '.join(parts)[:200]
 
 
 def main():
-    today = datetime.now(UTC).strftime('%Y-%m-%d')
-    input_file = Path('data/daily') / f'{today}.json'
-    output_file = Path('data/daily') / f'{today}_classified.json'
+    yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime('%Y-%m-%d')
+    input_file = Path('data/daily') / f'{yesterday}.json'
+    output_file = Path('data/daily') / f'{yesterday}_classified.json'
 
     if not input_file.exists():
         print(f'No input file found: {input_file}')
@@ -45,32 +46,36 @@ def main():
     with open(input_file) as f:
         data = json.load(f)
 
-    # Extract unique repos from all agents (new structure: agent.repos[])
-    unique_repos = {}
-    agent_repo_map = {}  # repo_id -> set of agent_ids
-
+    # Collect unique repos per agent
+    agent_repos = {}
     for agent_id, agent_data in data.items():
-        for repo in agent_data.get('repos', []):
-            repo_id = repo.get('id')
-            if repo_id:
-                unique_repos[repo_id] = repo
-                if repo_id not in agent_repo_map:
-                    agent_repo_map[repo_id] = set()
-                agent_repo_map[repo_id].add(agent_id)
+        repos = agent_data.get('repos', [])
+        agent_repos[agent_id] = repos
 
-    if not unique_repos:
+    # All unique repos for classification
+    all_repos = {}
+    repo_agents = {}
+    for agent_id, repos in agent_repos.items():
+        for repo in repos:
+            nwo = repo.get('full_name', '')
+            if nwo:
+                all_repos[nwo] = repo
+                if nwo not in repo_agents:
+                    repo_agents[nwo] = []
+                repo_agents[nwo].append(agent_id)
+
+    if not all_repos:
         print('No new repos to classify')
-        # Save empty result
         with open(output_file, 'w') as f:
             json.dump([], f)
         return
 
-    print(f'Classifying {len(unique_repos)} unique repositories...')
+    print(f'Classifying {len(all_repos)} unique repositories...')
 
     classifier = load_classifier()
     classified = []
 
-    for repo in unique_repos.values():
+    for nwo, repo in all_repos.items():
         text = get_repo_text(repo)
         if not text.strip():
             continue
@@ -78,19 +83,22 @@ def main():
         try:
             prediction = classifier(text)[0]
             classified.append({
-                'repo_id': repo['id'],
-                'full_name': repo.get('full_name', ''),
+                'full_name': nwo,
                 'naics_code': prediction['label'],
                 'confidence': round(prediction['score'], 4),
-                'agents': sorted(agent_repo_map.get(repo['id'], []))
+                'agents': sorted(repo_agents.get(nwo, []))
             })
         except Exception as e:
-            print(f"  Error classifying {repo.get('full_name')}: {e}")
+            print(f"  Error classifying {nwo}: {e}")
 
     with open(output_file, 'w') as f:
         json.dump(classified, f, indent=2)
 
-    print(f'Saved {len(classified)} classifications to {output_file}')
+    print(f'Classified {len(classified)} repos')
+    # Summary by agent
+    for agent_id in data.keys():
+        count = sum(1 for c in classified if agent_id in c.get('agents', []))
+        print(f'  {agent_id}: {count} classified')
 
 
 if __name__ == '__main__':

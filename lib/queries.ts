@@ -9,9 +9,8 @@ function loadJsonData(agentId: string) {
   try {
     const jsonPath = path.join(
       process.cwd(),
-      '..',
-      'ai-coding-agents-industry-analysis',
-      'docs',
+      'public',
+      'data',
       `${agentId}_cumulative.json`
     )
     if (fs.existsSync(jsonPath)) {
@@ -177,6 +176,7 @@ export async function getAgentTotalByMonth(agentId: string): Promise<{ month: st
   const monthTotals = new Map<string, number>()
 
   for (const stat of stats) {
+    if (stat.month < '2025-01') continue
     const current = monthTotals.get(stat.month) || 0
     monthTotals.set(stat.month, current + stat.cumulative)
   }

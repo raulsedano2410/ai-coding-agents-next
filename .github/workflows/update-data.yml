@@ -2,7 +2,7 @@ name: Update Agent Data
 
 on:
   schedule:
-    - cron: '5 0 * * *'  # 00:05 UTC daily
+    - cron: '5 6 * * *'  # 06:05 UTC daily (after midnight PT)
   workflow_dispatch:      # Manual trigger
 
 jobs:
@@ -17,12 +17,12 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Python dependencies
+      - name: Install dependencies
         run: |
           pip install requests supabase transformers --quiet
           pip install torch --index-url https://download.pytorch.org/whl/cpu --quiet
 
-      - name: Fetch new data from GitHub
+      - name: Fetch yesterday's data from GitHub
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: python scripts/fetch_daily.py
@@ -32,8 +32,16 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python scripts/classify_new_repos.py
 
-      - name: Aggregate and upload to Supabase
+      - name: Update JSONs and Supabase
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        run: python scripts/upload_to_supabase.py
+        run: python scripts/update_data.py
+
+      - name: Commit updated JSONs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/data/*.json
+          git diff --cached --quiet || git commit -m "data: update cumulative JSONs $(date -u +%Y-%m-%d)"
+          git push
