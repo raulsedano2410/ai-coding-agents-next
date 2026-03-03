@@ -1,5 +1,5 @@
-import { ClientRedirect } from '@/components/client-redirect'
+import { redirect } from 'next/navigation'
 
 export default function IndustriesPage() {
-  return <ClientRedirect url="/ai-coding-agents-industry-analysis/#industries" />
+  redirect('/#industries')
 }

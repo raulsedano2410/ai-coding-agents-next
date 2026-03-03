@@ -1,5 +1,5 @@
-import { ClientRedirect } from '@/components/client-redirect'
+import { redirect } from 'next/navigation'
 
 export default function MethodologyPage() {
-  return <ClientRedirect url="/ai-coding-agents-industry-analysis/#methodology" />
+  redirect('/#methodology')
 }
