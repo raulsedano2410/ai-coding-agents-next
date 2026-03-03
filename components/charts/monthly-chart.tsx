@@ -14,6 +14,7 @@ import {
 } from 'recharts'
 import { formatNumber, formatMonth } from '@/lib/utils'
 import { Industry } from '@/lib/types'
+import { useChartColors } from '@/lib/use-chart-colors'
 
 interface MonthlyChartProps {
   data: Record<string, string | number>[]
@@ -21,6 +22,7 @@ interface MonthlyChartProps {
 }
 
 export function MonthlyChart({ data, industries }: MonthlyChartProps) {
+  const colors = useChartColors()
   const [topN, setTopN] = useState<'top5' | 'top10' | 'all'>('top10')
   const [chartType, setChartType] = useState<'line' | 'bar'>('line')
   const [hiddenCodes, setHiddenCodes] = useState<Set<string>>(new Set())
@@ -58,8 +60,8 @@ export function MonthlyChart({ data, industries }: MonthlyChartProps) {
   }
 
   const tooltipContentStyle = {
-    backgroundColor: '#18181b',
-    border: '1px solid #27272a',
+    backgroundColor: colors.tooltipBg,
+    border: `1px solid ${colors.tooltipBorder}`,
     borderRadius: '8px',
     maxHeight: '300px',
     overflowY: 'auto' as const,
@@ -70,9 +72,9 @@ export function MonthlyChart({ data, industries }: MonthlyChartProps) {
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-zinc-500">Industries:</span>
+          <span className="text-xs text-[var(--text-muted)]">Industries:</span>
           <select
-            className="bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500"
+            className="bg-[var(--bg-tertiary)] border border-[var(--border)] text-[var(--text-primary)] text-xs rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500"
             value={topN}
             onChange={(e) => setTopN(e.target.value as 'top5' | 'top10' | 'all')}
           >
@@ -82,9 +84,9 @@ export function MonthlyChart({ data, industries }: MonthlyChartProps) {
           </select>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-zinc-500">Chart Type:</span>
+          <span className="text-xs text-[var(--text-muted)]">Chart Type:</span>
           <select
-            className="bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500"
+            className="bg-[var(--bg-tertiary)] border border-[var(--border)] text-[var(--text-primary)] text-xs rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500"
             value={chartType}
             onChange={(e) => setChartType(e.target.value as 'line' | 'bar')}
           >
@@ -100,25 +102,25 @@ export function MonthlyChart({ data, industries }: MonthlyChartProps) {
           {chartType === 'bar' ? (
             <BarChart
               data={data}
-              margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+              margin={{ top: 10, right: 5, left: -10, bottom: 5 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+              <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
               <XAxis
                 dataKey="month"
-                stroke="#71717a"
+                stroke={colors.axis}
                 fontSize={12}
                 tickFormatter={formatMonth}
-                tick={{ fill: '#a1a1aa' }}
+                tick={{ fill: colors.tick }}
               />
               <YAxis
-                stroke="#71717a"
+                stroke={colors.axis}
                 fontSize={12}
                 tickFormatter={formatNumber}
-                tick={{ fill: '#a1a1aa' }}
+                tick={{ fill: colors.tick }}
               />
               <Tooltip
                 contentStyle={tooltipContentStyle}
-                labelStyle={{ color: '#fafafa' }}
+                labelStyle={{ color: colors.tooltipLabel }}
                 labelFormatter={(label) => formatMonth(String(label))}
                 formatter={(value, name) => {
                   const industry = industries.find((i) => i.code === name)
@@ -138,25 +140,25 @@ export function MonthlyChart({ data, industries }: MonthlyChartProps) {
           ) : (
             <LineChart
               data={data}
-              margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+              margin={{ top: 10, right: 5, left: -10, bottom: 5 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+              <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
               <XAxis
                 dataKey="month"
-                stroke="#71717a"
+                stroke={colors.axis}
                 fontSize={12}
                 tickFormatter={formatMonth}
-                tick={{ fill: '#a1a1aa' }}
+                tick={{ fill: colors.tick }}
               />
               <YAxis
-                stroke="#71717a"
+                stroke={colors.axis}
                 fontSize={12}
                 tickFormatter={formatNumber}
-                tick={{ fill: '#a1a1aa' }}
+                tick={{ fill: colors.tick }}
               />
               <Tooltip
                 contentStyle={tooltipContentStyle}
-                labelStyle={{ color: '#fafafa' }}
+                labelStyle={{ color: colors.tooltipLabel }}
                 labelFormatter={(label) => formatMonth(String(label))}
                 formatter={(value, name) => {
                   const industry = industries.find((i) => i.code === name)
@@ -197,7 +199,7 @@ export function MonthlyChart({ data, industries }: MonthlyChartProps) {
                 className="w-3 h-3 rounded-sm"
                 style={{ backgroundColor: industry.color }}
               />
-              <span className="text-xs text-zinc-400">{industry.name}</span>
+              <span className="text-xs text-[var(--text-secondary)]">{industry.name}</span>
             </button>
           )
         })}

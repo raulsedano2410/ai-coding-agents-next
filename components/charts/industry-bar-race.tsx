@@ -100,7 +100,7 @@ export function IndustryBarRace({ data, maxItems = 10, timeData, months }: Indus
         <div className="flex flex-wrap items-center gap-3">
           {/* Month Selector */}
           <select
-            className="bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500"
+            className="bg-[var(--bg-tertiary)] border border-[var(--border)] text-[var(--text-primary)] text-sm rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-500"
             value={currentIndex}
             onChange={(e) => {
               setIsPlaying(false)
@@ -112,7 +112,7 @@ export function IndustryBarRace({ data, maxItems = 10, timeData, months }: Indus
             ))}
           </select>
 
-          <span className="text-xs text-zinc-500">Cumulative adoption by NAICS sector</span>
+          <span className="text-xs text-[var(--text-muted)]">Cumulative adoption by NAICS sector</span>
 
           <div className="flex-1" />
 
@@ -128,7 +128,7 @@ export function IndustryBarRace({ data, maxItems = 10, timeData, months }: Indus
           {/* Reset */}
           <button
             onClick={reset}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 text-xs font-medium transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[var(--bg-tertiary)] hover:brightness-110 text-[var(--text-primary)] text-xs font-medium transition-colors"
           >
             <RotateCcw className="h-3.5 w-3.5" />
             Reset
@@ -136,7 +136,7 @@ export function IndustryBarRace({ data, maxItems = 10, timeData, months }: Indus
 
           {/* Speed */}
           <select
-            className="bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs rounded-md px-2 py-1.5 focus:outline-none"
+            className="bg-[var(--bg-tertiary)] border border-[var(--border)] text-[var(--text-primary)] text-xs rounded-md px-2 py-1.5 focus:outline-none"
             value={speed}
             onChange={(e) => setSpeed(Number(e.target.value))}
           >
@@ -152,7 +152,7 @@ export function IndustryBarRace({ data, maxItems = 10, timeData, months }: Indus
             className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
               showAll
                 ? 'bg-purple-600/20 text-purple-400 border border-purple-500/30'
-                : 'bg-zinc-700 text-zinc-300 border border-zinc-600'
+                : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border)]'
             }`}
           >
             {showAll ? `All ${sortedData.length}` : `Top ${maxItems}`}
@@ -161,47 +161,51 @@ export function IndustryBarRace({ data, maxItems = 10, timeData, months }: Indus
       )}
 
       {/* Bar items */}
-      <div className="space-y-1.5">
-        {displayData.map((item, index) => (
-          <div
-            key={item.code}
-            className="grid items-center gap-2 transition-all duration-300"
-            style={{
-              gridTemplateColumns: '28px 110px 1fr 60px',
-            }}
-          >
-            <div className={`text-xs font-bold text-right ${index < 3 ? 'text-purple-400' : 'text-zinc-500'}`}>
-              {index + 1}
-            </div>
-            <div className="text-xs text-zinc-300 truncate" title={item.name}>
-              {item.name}
-            </div>
-            <div className="h-5 bg-zinc-800 rounded overflow-hidden">
+      <div className="space-y-1">
+        {displayData.map((item, index) => {
+          const pct = (item.value / maxValue) * 100
+          return (
+            <div
+              key={item.code}
+              className="relative h-7 bg-[var(--bar-bg)] rounded overflow-hidden transition-all duration-300"
+            >
+              {/* Bar fill */}
               <div
-                className="h-full rounded transition-all duration-500"
+                className="absolute inset-y-0 left-0 rounded transition-all duration-500"
                 style={{
-                  width: `${(item.value / maxValue) * 100}%`,
+                  width: `${pct}%`,
                   background: `linear-gradient(90deg, ${item.color}80, ${item.color})`,
                 }}
               />
+              {/* Text overlay inside bar */}
+              <div className="relative h-full flex items-center justify-between px-2 z-10">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-[10px] font-bold text-white/60 shrink-0">
+                    {index + 1}
+                  </span>
+                  <span className="text-[11px] font-medium text-white truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                    {item.name}
+                  </span>
+                </div>
+                <span className="text-[11px] font-mono text-white shrink-0 ml-1 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                  {formatNumber(item.value)}
+                </span>
+              </div>
             </div>
-            <div className="text-xs text-zinc-400 text-right font-mono">
-              {formatNumber(item.value)}
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Progress bar */}
       {hasTimeSeries && (
-        <div className="pt-3 border-t border-zinc-800">
+        <div className="pt-3 border-t border-[var(--border)]">
           <div className="flex justify-between mb-2">
-            <span className="text-xs text-zinc-500">Timeline Progress</span>
-            <span className="text-xs text-zinc-500">
+            <span className="text-xs text-[var(--text-muted)]">Timeline Progress</span>
+            <span className="text-xs text-[var(--text-muted)]">
               {currentIndex + 1} of {months!.length} months
             </span>
           </div>
-          <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
+          <div className="h-1 bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-purple-600 to-pink-500 rounded-full transition-all duration-300"
               style={{ width: `${progressPct}%` }}
@@ -237,7 +241,7 @@ export function IndustryLegend({ industries, hiddenCodes, onToggle }: IndustryLe
               className="w-3 h-3 rounded-sm"
               style={{ backgroundColor: industry.color }}
             />
-            <span className="text-xs text-zinc-400">{industry.name}</span>
+            <span className="text-xs text-[var(--text-secondary)]">{industry.name}</span>
           </button>
         )
       })}

@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { formatNumber, formatMonth } from '@/lib/utils'
+import { useChartColors } from '@/lib/use-chart-colors'
 
 interface AgentConfig {
   id: string
@@ -24,42 +25,49 @@ interface ComparisonChartProps {
 }
 
 export function ComparisonChart({ data, agents }: ComparisonChartProps) {
+  const colors = useChartColors()
+
   return (
     <div className="h-[400px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={data}
-          margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+          margin={{ top: 10, right: 5, left: -10, bottom: 5 }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+          <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
           <XAxis
             dataKey="month"
-            stroke="#71717a"
+            stroke={colors.axis}
             fontSize={12}
             tickFormatter={formatMonth}
-            tick={{ fill: '#a1a1aa' }}
+            tick={{ fill: colors.tick }}
           />
           <YAxis
-            stroke="#71717a"
+            stroke={colors.axis}
             fontSize={12}
             tickFormatter={formatNumber}
-            tick={{ fill: '#a1a1aa' }}
+            tick={{ fill: colors.tick }}
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: '#18181b',
-              border: '1px solid #27272a',
+              backgroundColor: colors.tooltipBg,
+              border: `1px solid ${colors.tooltipBorder}`,
               borderRadius: '8px',
             }}
-            labelStyle={{ color: '#fafafa' }}
+            labelStyle={{ color: colors.tooltipLabel }}
             labelFormatter={(label) => formatMonth(String(label))}
-            formatter={(value) => [formatNumber(Number(value) || 0), '']}
+            formatter={(value, name) => {
+              const agent = agents.find(a => a.id === name)
+              return [formatNumber(Number(value) || 0), agent?.name || String(name)]
+            }}
           />
           <Legend
-            wrapperStyle={{ paddingTop: '20px' }}
-            formatter={(value) => (
-              <span style={{ color: '#a1a1aa' }}>{value}</span>
-            )}
+            verticalAlign="bottom"
+            wrapperStyle={{ paddingTop: '16px' }}
+            formatter={(value: string) => {
+              const agent = agents.find(a => a.id === value)
+              return <span style={{ color: colors.legendText, fontSize: '11px' }}>{agent?.name || value}</span>
+            }}
           />
           {agents.map((agent) => (
             <Line
