@@ -1,0 +1,105 @@
+name: Smoke Test - Verify tokens & permissions
+
+on:
+  workflow_dispatch:  # Manual trigger only
+
+jobs:
+  test-tokens:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # --- Test 1: GH_TOKEN scope ---
+      - name: "Test GH_TOKEN - API access"
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          echo "=== Test 1a: GitHub API search (1 result) ==="
+          STATUS=$(curl -s -o /tmp/gh_response.json -w "%{http_code}" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/search/issues?q=is:pr+head:cursor/+created:2026-03-04&per_page=1")
+          echo "HTTP status: $STATUS"
+          if [ "$STATUS" = "200" ]; then
+            TOTAL=$(python3 -c "import json; print(json.load(open('/tmp/gh_response.json'))['total_count'])")
+            echo "✅ GH_TOKEN works - total_count: $TOTAL"
+          else
+            echo "❌ GH_TOKEN failed"
+            cat /tmp/gh_response.json
+            exit 1
+          fi
+
+          echo ""
+          echo "=== Test 1b: Check token scopes ==="
+          curl -s -I -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/ | grep -i "x-oauth-scopes"
+
+      # --- Test 2: Supabase connection ---
+      - name: "Test Supabase - read access"
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          echo "=== Test 2: Supabase query (agents table) ==="
+          STATUS=$(curl -s -o /tmp/sb_response.json -w "%{http_code}" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            "$SUPABASE_URL/rest/v1/agents?select=id,name&limit=2")
+          echo "HTTP status: $STATUS"
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ Supabase works"
+            cat /tmp/sb_response.json | python3 -m json.tool
+          else
+            echo "❌ Supabase failed"
+            cat /tmp/sb_response.json
+            exit 1
+          fi
+
+      # --- Test 3: HF model access (no HF_TOKEN yet, test public access) ---
+      - name: "Test HF - model exists"
+        run: |
+          echo "=== Test 3: HF model info ==="
+          STATUS=$(curl -s -o /tmp/hf_response.json -w "%{http_code}" \
+            "https://huggingface.co/api/models/aquiro1994/naics-github-classifier")
+          echo "HTTP status: $STATUS"
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ HF model accessible (public)"
+            python3 -c "import json; d=json.load(open('/tmp/hf_response.json')); print(f'Model: {d[\"modelId\"]}, pipeline: {d.get(\"pipeline_tag\",\"?\")}')"
+          else
+            echo "❌ HF model not found"
+            cat /tmp/hf_response.json
+            exit 1
+          fi
+
+      # --- Test 4: Git push permissions ---
+      - name: "Test Git push - commit & push a test file"
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          echo "=== Test 4: Git commit & push ==="
+          git config user.name "raul"
+          git config user.email "raulsedanomolina@gmail.com"
+          git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/raulsedano2410/ai-coding-agents-next.git
+
+          # Write a tiny test file
+          echo "smoke-test: $(date -u +%Y-%m-%dT%H:%M:%SZ)" > .smoke-test
+          git add .smoke-test
+          git commit -m "ci: smoke test - verify Actions can push"
+
+          # Push
+          if git push origin main; then
+            echo "✅ Git push works"
+          else
+            echo "❌ Git push failed (token may lack push scope)"
+            exit 1
+          fi
+
+      # --- Summary ---
+      - name: "Summary"
+        if: always()
+        run: |
+          echo ""
+          echo "=============================="
+          echo "  SMOKE TEST COMPLETE"
+          echo "=============================="
+          echo "Check each step above for ✅/❌"
