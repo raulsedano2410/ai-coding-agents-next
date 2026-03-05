@@ -9,6 +9,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       # --- Test 1: GH_TOKEN scope ---
       - name: "Test GH_TOKEN - API access"
@@ -55,11 +57,14 @@ jobs:
             exit 1
           fi
 
-      # --- Test 3: HF model access (no HF_TOKEN yet, test public access) ---
-      - name: "Test HF - model exists"
+      # --- Test 3: HF model access with token ---
+      - name: "Test HF - model + token"
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           echo "=== Test 3: HF model info ==="
           STATUS=$(curl -s -o /tmp/hf_response.json -w "%{http_code}" \
+            -H "Authorization: Bearer $HF_TOKEN" \
             "https://huggingface.co/api/models/aquiro1994/naics-github-classifier")
           echo "HTTP status: $STATUS"
           if [ "$STATUS" = "200" ]; then
